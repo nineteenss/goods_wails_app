@@ -32,6 +32,7 @@ export const CurrentVersion = ({ version }: CurrentVersionProps) => {
         <Button
           size="compact-sm"
           variant="subtle"
+          color={isUpdateAvailable ? "orange" : "green"}
           rightSection={
             isUpdateAvailable ? (
               <IconDownload size={18} />

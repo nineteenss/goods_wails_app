@@ -1,5 +1,5 @@
 import React from "react";
-import { IconEdit, IconPlus, IconTrash, IconMinus } from "@tabler/icons-react";
+import { IconEdit, IconPlus, IconMinus, IconSearch } from "@tabler/icons-react";
 
 import {
   Table as MantineTable,
@@ -8,6 +8,7 @@ import {
   Textarea,
   Menu,
   Text,
+  Input,
 } from "@mantine/core";
 
 import styles from "./Table.module.css";
@@ -107,6 +108,17 @@ export function Table() {
 
   return (
     <Paper withBorder p="xs" radius="lg">
+      <Input
+        placeholder="Поиск по каталогу"
+        leftSection={
+          <IconSearch size={18} color="var(--mantine-color-gray-5)" />
+        }
+        mb="xs"
+        radius="md"
+        onChange={(e) => {
+          console.log(e.target.value);
+        }}
+      />
       <MantineTable.ScrollContainer
         maxHeight={500}
         minWidth={"100%"}
@@ -121,12 +133,11 @@ export function Table() {
         >
           <MantineTable.Thead>
             <MantineTable.Tr>
-              <MantineTable.Th>id</MantineTable.Th>
+              <MantineTable.Th>№</MantineTable.Th>
               <MantineTable.Th>Название позиции</MantineTable.Th>
               <MantineTable.Th>Кол-во</MantineTable.Th>
               <MantineTable.Th>Обновлено</MantineTable.Th>
               <MantineTable.Th>Комментарий</MantineTable.Th>
-              <MantineTable.Th>Инструменты</MantineTable.Th>
             </MantineTable.Tr>
           </MantineTable.Thead>
           <MantineTable.Tbody>{rows}</MantineTable.Tbody>
