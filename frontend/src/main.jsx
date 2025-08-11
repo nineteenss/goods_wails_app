@@ -2,6 +2,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import "./style.css";
 import App from "./App";
+import "./native-app";
 
 import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
