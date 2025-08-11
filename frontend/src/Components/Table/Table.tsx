@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { IconEdit, IconPlus, IconMinus, IconSearch } from "@tabler/icons-react";
 
-import { Notification } from "@mantine/core";
-
 import {
   Table as MantineTable,
   Paper,
@@ -14,7 +12,8 @@ import {
   Flex,
 } from "@mantine/core";
 import { modals } from "@mantine/modals";
-import { AddItemForm } from "../AddItemForm/AddItemForm";
+import { notifications } from "@mantine/notifications";
+
 import {
   createItem,
   listItems,
@@ -22,10 +21,11 @@ import {
   withdrawItem,
   type Item,
 } from "../../utils/api";
+
 import { EventsOn, EventsOff } from "../../../wailsjs/runtime/runtime";
 
+import { AddItemForm } from "../AddItemForm/AddItemForm";
 import { AddItemButton } from "../Buttons/AddItemButton";
-import { notifications } from "@mantine/notifications";
 
 import styles from "./Table.module.css";
 
