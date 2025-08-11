@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { IconEdit, IconPlus, IconMinus, IconSearch } from "@tabler/icons-react";
 
+import { Notification } from "@mantine/core";
+
 import {
   Table as MantineTable,
   Paper,
@@ -9,6 +11,7 @@ import {
   Menu,
   Text,
   Input,
+  Flex,
 } from "@mantine/core";
 import { modals } from "@mantine/modals";
 import { AddItemForm } from "../AddItemForm/AddItemForm";
@@ -19,9 +22,12 @@ import {
   withdrawItem,
   type Item,
 } from "../../utils/api";
+import { EventsOn, EventsOff } from "../../../wailsjs/runtime/runtime";
+
+import { AddItemButton } from "../Buttons/AddItemButton";
+import { notifications } from "@mantine/notifications";
 
 import styles from "./Table.module.css";
-import { EventsOn, EventsOff } from "../../../wailsjs/runtime/runtime";
 
 const quantityColorOnAmount = (amount: number) => {
   const min = 3;
@@ -105,12 +111,27 @@ export function Table() {
     saveTimers.current[id] = setTimeout(async () => {
       const current = itemsRef.current.find((i) => i.id === id);
       if (!current) return;
-      await updateItem({
-        id,
-        name: current.name,
-        quantity: current.quantity,
-        comment: newComment,
-      });
+      try {
+        await updateItem({
+          id,
+          name: current.name,
+          quantity: current.quantity,
+          comment: newComment,
+        });
+        notifications.show({
+          id: `comment-saved-${id}`,
+          color: "teal",
+          message: "Комментарий сохранён",
+          autoClose: 1200,
+        });
+      } catch (e) {
+        notifications.show({
+          id: `comment-save-error-${id}`,
+          color: "red",
+          message: "Не удалось сохранить комментарий",
+          autoClose: 2000,
+        });
+      }
     }, 600);
   };
 
@@ -146,13 +167,14 @@ export function Table() {
           submitLabel="Добавить"
           onCancel={() => modals.closeAll()}
           onSubmit={async (values) => {
-            await createItem(values);
+            await createItem({ ...values, comment: "" });
             refresh();
             modals.closeAll();
           }}
         />
       ),
       centered: true,
+      radius: "12px",
     });
   };
 
@@ -164,17 +186,21 @@ export function Table() {
           initial={{
             name: element.name,
             quantity: element.quantity,
-            comment: element.comment,
           }}
           onCancel={() => modals.closeAll()}
           onSubmit={async (values) => {
-            await updateItem({ id: element.id, ...values });
+            await updateItem({
+              id: element.id,
+              ...values,
+              comment: element.comment,
+            });
             refresh();
             modals.closeAll();
           }}
         />
       ),
       centered: true,
+      radius: "12px",
     });
   };
 
@@ -183,14 +209,16 @@ export function Table() {
       title: "Списать",
       children: (
         <AddItemForm
-          initial={{ name: element.name, quantity: 0, comment: "" }}
+          initial={{ name: element.name, quantity: 0 }}
           submitLabel="Списать"
+          mode="withdraw"
+          maxQuantity={element.quantity}
           onCancel={() => modals.closeAll()}
           onSubmit={async (values) => {
             await withdrawItem({
               id: element.id,
               delta: values.quantity,
-              comment: values.comment,
+              comment: "",
             });
             refresh();
             modals.closeAll();
@@ -198,6 +226,7 @@ export function Table() {
         />
       ),
       centered: true,
+      radius: "12px",
     });
   };
 
@@ -268,42 +297,49 @@ export function Table() {
   ));
 
   return (
-    <Paper withBorder p="xs" radius="lg">
-      <Input
-        placeholder="Поиск по каталогу"
-        leftSection={
-          <IconSearch size={18} color="var(--mantine-color-gray-5)" />
-        }
-        mb="xs"
-        radius="md"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
-      <MantineTable.ScrollContainer
-        maxHeight={"calc(100dvh - 335px)"}
-        minWidth={"100%"}
-        type="native"
-      >
-        <MantineTable
-          striped
-          stickyHeader
-          withColumnBorders
-          withRowBorders={false}
-          highlightOnHover
+    <Flex direction={"column"} gap={0}>
+      <Paper bg={"blue"} p="xs" className={styles.toolbar}>
+        <Flex direction={"row"} gap="xs">
+          <AddItemButton />
+          <Input
+            placeholder="Поиск по каталогу"
+            leftSection={
+              <IconSearch size={18} color="var(--mantine-color-gray-5)" />
+            }
+            radius="md"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            w={"100%"}
+          />
+        </Flex>
+      </Paper>
+      <Paper withBorder p="xs" radius="lg" className={styles.table}>
+        <MantineTable.ScrollContainer
+          maxHeight={"calc(100dvh - 335px)"}
+          minWidth={"100%"}
+          type="native"
         >
-          <MantineTable.Thead>
-            <MantineTable.Tr>
-              <MantineTable.Th>№</MantineTable.Th>
-              <MantineTable.Th>Название позиции</MantineTable.Th>
-              <MantineTable.Th>Кол-во</MantineTable.Th>
-              <MantineTable.Th>Обновлено</MantineTable.Th>
-              <MantineTable.Th>Комментарий</MantineTable.Th>
-              <MantineTable.Th></MantineTable.Th>
-            </MantineTable.Tr>
-          </MantineTable.Thead>
-          <MantineTable.Tbody>{rows}</MantineTable.Tbody>
-        </MantineTable>
-      </MantineTable.ScrollContainer>
-    </Paper>
+          <MantineTable
+            striped
+            stickyHeader
+            withColumnBorders
+            withRowBorders={false}
+            highlightOnHover
+          >
+            <MantineTable.Thead>
+              <MantineTable.Tr>
+                <MantineTable.Th>№</MantineTable.Th>
+                <MantineTable.Th>Название позиции</MantineTable.Th>
+                <MantineTable.Th>Кол-во</MantineTable.Th>
+                <MantineTable.Th>Обновлено</MantineTable.Th>
+                <MantineTable.Th>Комментарий</MantineTable.Th>
+                <MantineTable.Th></MantineTable.Th>
+              </MantineTable.Tr>
+            </MantineTable.Thead>
+            <MantineTable.Tbody>{rows}</MantineTable.Tbody>
+          </MantineTable>
+        </MantineTable.ScrollContainer>
+      </Paper>
+    </Flex>
   );
 }

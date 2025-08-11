@@ -1,0 +1,9 @@
+.root {
+  position: relative;
+}
+
+.description {
+  position: absolute;
+  right: 0;
+  top: 0;
+}

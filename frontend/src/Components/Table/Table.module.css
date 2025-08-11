@@ -13,3 +13,12 @@
   border-top-right-radius: 6px;
   border-bottom-right-radius: 6px;
 }
+
+.toolbar {
+  border-radius: 12px 12px 0 0 !important;
+}
+
+.table {
+  border-radius: 0 0 12px 12px !important;
+  border-top: none !important;
+}
