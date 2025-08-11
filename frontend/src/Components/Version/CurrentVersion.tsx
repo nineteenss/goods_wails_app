@@ -2,12 +2,15 @@ import { useState } from "react";
 
 import { Flex, Text, Button, Tooltip } from "@mantine/core";
 import { IconDownload, IconCheck } from "@tabler/icons-react";
+import pkg from "../../../package.json";
 
 interface CurrentVersionProps {
-  version: string;
+  version?: string;
 }
 
-export const CurrentVersion = ({ version }: CurrentVersionProps) => {
+export const CurrentVersion = ({
+  version = pkg.version,
+}: CurrentVersionProps) => {
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
 
   return (

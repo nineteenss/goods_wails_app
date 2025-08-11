@@ -16,7 +16,7 @@ function App() {
         </Flex>
         <Flex direction={"row"} gap={30} justify={"space-between"}>
           <AmountCounter positions={10} items={100} />
-          <CurrentVersion version="1.0.0" />
+          <CurrentVersion />
         </Flex>
       </Flex>
     </Providers>
