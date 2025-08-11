@@ -37,6 +37,7 @@ export function AddItemForm({
         return null;
       },
     },
+    validateInputOnChange: true,
   });
 
   return (
@@ -53,12 +54,13 @@ export function AddItemForm({
       <NumberInput
         mt="sm"
         label="Количество"
-        min={0}
+        min={mode === "withdraw" ? 1 : 0}
         max={
           mode === "withdraw" && typeof maxQuantity === "number"
             ? maxQuantity
             : undefined
         }
+        clampBehavior={mode === "withdraw" ? "strict" : "blur"}
         description={
           mode === "withdraw" && typeof maxQuantity === "number" ? (
             <Pill bg={"orange.1"} variant="outline">
