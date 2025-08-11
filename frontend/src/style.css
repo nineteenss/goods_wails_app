@@ -24,7 +24,7 @@ body {
   font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
     "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
     sans-serif;
-  padding: 30px;
+  padding: 30px !important;
   height: 100dvh;
   overflow: hidden;
   -webkit-touch-callout: none;
