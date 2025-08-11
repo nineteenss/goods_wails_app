@@ -51,6 +51,62 @@ const elements = [
     updated: "2024-05-04",
     comment: "Нет комментариев",
   },
+  {
+    id: 1,
+    name: "Товар 1",
+    quantity: 10,
+    updated: "2024-05-01",
+    comment: "Нет комментариев",
+  },
+  {
+    id: 2,
+    name: "Товар 2",
+    quantity: 5,
+    updated: "2024-05-02",
+    comment: "Срочно",
+  },
+  {
+    id: 3,
+    name: "Товар 3",
+    quantity: 20,
+    updated: "2024-05-03",
+    comment: "Нет комментариев",
+  },
+  {
+    id: 4,
+    name: "Товар 4",
+    quantity: 3,
+    updated: "2024-05-04",
+    comment: "Нет комментариев",
+  },
+  {
+    id: 1,
+    name: "Товар 1",
+    quantity: 10,
+    updated: "2024-05-01",
+    comment: "Нет комментариев",
+  },
+  {
+    id: 2,
+    name: "Товар 2",
+    quantity: 5,
+    updated: "2024-05-02",
+    comment: "Срочно",
+  },
+  {
+    id: 3,
+    name: "Товар 3",
+    quantity: 20,
+    updated: "2024-05-03",
+    comment: "Нет комментариев",
+  },
+  {
+    id: 4,
+    name: "Товар 4",
+    quantity: 3,
+    updated: "2024-05-04",
+    comment: "Нет комментариев",
+  },
 ];
 
 export function Table() {
@@ -120,7 +176,7 @@ export function Table() {
         }}
       />
       <MantineTable.ScrollContainer
-        maxHeight={500}
+        maxHeight={"calc(100dvh - 335px)"}
         minWidth={"100%"}
         type="native"
       >
@@ -138,6 +194,7 @@ export function Table() {
               <MantineTable.Th>Кол-во</MantineTable.Th>
               <MantineTable.Th>Обновлено</MantineTable.Th>
               <MantineTable.Th>Комментарий</MantineTable.Th>
+              <MantineTable.Th></MantineTable.Th>
             </MantineTable.Tr>
           </MantineTable.Thead>
           <MantineTable.Tbody>{rows}</MantineTable.Tbody>

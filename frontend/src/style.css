@@ -47,12 +47,3 @@ body {
   src: local(""),
     url("assets/fonts/nunito-v16-latin-regular.woff2") format("woff2");
 }
-
-::-webkit-scrollbar {
-  width: 0px;
-  background: transparent;
-}
-
-* {
-  -webkit-context-menu: none;
-}
