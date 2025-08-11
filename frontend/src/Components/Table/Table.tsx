@@ -127,6 +127,17 @@ export function Table() {
     return items.filter((i) => i.name.toLowerCase().includes(q));
   }, [items, query]);
 
+  useEffect(() => {
+    const positions = filtered.length;
+    const itemsTotal = filtered.reduce(
+      (sum, it) => sum + (it.quantity || 0),
+      0
+    );
+    window.dispatchEvent(
+      new CustomEvent("ui:stats", { detail: { positions, itemsTotal } })
+    );
+  }, [filtered]);
+
   const openCreateModal = () => {
     modals.open({
       title: "Добавить позицию",

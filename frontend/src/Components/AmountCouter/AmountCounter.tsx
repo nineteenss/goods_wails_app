@@ -1,11 +1,25 @@
 import { Flex, Text, Badge, Tooltip } from "@mantine/core";
+import { useEffect, useState } from "react";
 
-interface CurrentVersionProps {
-  positions: number;
-  items: number;
-}
+export const AmountCounter = () => {
+  const [positions, setPositions] = useState(0);
+  const [items, setItems] = useState(0);
 
-export const AmountCounter = ({ positions, items }: CurrentVersionProps) => {
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (
+        e as CustomEvent<{ positions: number; itemsTotal: number }>
+      ).detail;
+      if (detail) {
+        setPositions(detail.positions);
+        setItems(detail.itemsTotal);
+      }
+    };
+    window.addEventListener("ui:stats", handler as EventListener);
+    return () =>
+      window.removeEventListener("ui:stats", handler as EventListener);
+  }, []);
+
   return (
     <Flex direction={"row"} gap={12} align={"center"}>
       <Flex direction={"row"} gap={6} align={"center"}>
