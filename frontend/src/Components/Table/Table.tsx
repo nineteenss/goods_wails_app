@@ -187,11 +187,14 @@ export function Table() {
             name: element.name,
             quantity: element.quantity,
           }}
+          mode="update"
           onCancel={() => modals.closeAll()}
           onSubmit={async (values) => {
             await updateItem({
               id: element.id,
-              ...values,
+              // only name should be updated; keep quantity and comment
+              name: values.name,
+              quantity: element.quantity,
               comment: element.comment,
             });
             refresh();
@@ -230,10 +233,38 @@ export function Table() {
     });
   };
 
+  const openAddQuantityModal = (element: Item) => {
+    modals.open({
+      title: "Добавить",
+      children: (
+        <AddItemForm
+          initial={{ name: element.name, quantity: 0 }}
+          submitLabel="Добавить"
+          mode="add"
+          onCancel={() => modals.closeAll()}
+          onSubmit={async (values) => {
+            await updateItem({
+              id: element.id,
+              name: element.name,
+              quantity: element.quantity + values.quantity,
+              comment: element.comment,
+            });
+            refresh();
+            modals.closeAll();
+          }}
+        />
+      ),
+      centered: true,
+      radius: "12px",
+    });
+  };
+
   const rows = filtered.map((element) => (
     <MantineTable.Tr key={element.id}>
       <MantineTable.Td align="center">{element.id}</MantineTable.Td>
-      <MantineTable.Td>{element.name}</MantineTable.Td>
+      <MantineTable.Td maw={300}>
+        <Text truncate="end">{element.name}</Text>
+      </MantineTable.Td>
       <MantineTable.Td
         align="center"
         style={{ color: quantityColorOnAmount(element.quantity) }}
@@ -279,7 +310,7 @@ export function Table() {
             </Menu.Item>
             <Menu.Item
               leftSection={<IconPlus size={14} color="green" />}
-              onClick={() => openCreateModal()}
+              onClick={() => openAddQuantityModal(element)}
             >
               Добавить
             </Menu.Item>
@@ -333,7 +364,7 @@ export function Table() {
                 <MantineTable.Th>Кол-во</MantineTable.Th>
                 <MantineTable.Th>Обновлено</MantineTable.Th>
                 <MantineTable.Th>Комментарий</MantineTable.Th>
-                <MantineTable.Th></MantineTable.Th>
+                <MantineTable.Th w={90}></MantineTable.Th>
               </MantineTable.Tr>
             </MantineTable.Thead>
             <MantineTable.Tbody>{rows}</MantineTable.Tbody>

@@ -9,7 +9,7 @@ type Props = {
   onSubmit: (values: { name: string; quantity: number }) => void;
   onCancel: () => void;
   maxQuantity?: number;
-  mode?: "create" | "update" | "withdraw";
+  mode?: "create" | "update" | "withdraw" | "add";
 };
 
 export function AddItemForm({
@@ -49,31 +49,36 @@ export function AddItemForm({
       <TextInput
         label="Название"
         placeholder="Например: Резистор"
+        disabled={mode === "withdraw" || mode === "add"}
         {...form.getInputProps("name")}
       />
-      <NumberInput
-        mt="sm"
-        label="Количество"
-        min={mode === "withdraw" ? 1 : 0}
-        max={
-          mode === "withdraw" && typeof maxQuantity === "number"
-            ? maxQuantity
-            : undefined
-        }
-        clampBehavior={mode === "withdraw" ? "strict" : "blur"}
-        description={
-          mode === "withdraw" && typeof maxQuantity === "number" ? (
-            <Pill bg={"orange.1"} variant="outline">
-              В наличии: {maxQuantity}
-            </Pill>
-          ) : undefined
-        }
-        classNames={{
-          root: styles.root,
-          description: styles.description,
-        }}
-        {...form.getInputProps("quantity")}
-      />
+      {mode !== "update" && (
+        <NumberInput
+          mt="sm"
+          label="Количество"
+          min={mode === "withdraw" || mode === "add" ? 1 : 0}
+          max={
+            mode === "withdraw" && typeof maxQuantity === "number"
+              ? maxQuantity
+              : undefined
+          }
+          clampBehavior={
+            mode === "withdraw" || mode === "add" ? "strict" : "blur"
+          }
+          description={
+            mode === "withdraw" && typeof maxQuantity === "number" ? (
+              <Pill bg={"orange.1"} variant="outline">
+                В наличии: {maxQuantity}
+              </Pill>
+            ) : undefined
+          }
+          classNames={{
+            root: styles.root,
+            description: styles.description,
+          }}
+          {...form.getInputProps("quantity")}
+        />
+      )}
 
       <Group justify="flex-end" mt="md">
         <Button variant="default" onClick={onCancel} type="button">
