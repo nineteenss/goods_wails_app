@@ -17,6 +17,13 @@ import (
 type App struct {
 	ctx context.Context
 	db  *services.DatabaseService
+	// updater handles version checks and downloads
+	updater        *services.UpdaterService
+	exePath        string
+	currentVersion string
+	latestTag      string
+	latestAssetURL string
+	downloaded     bool
 }
 
 // NewApp creates a new App application struct
@@ -30,6 +37,15 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	// Initialize SQLite database in user config directory
 	initDatabase(a)
+	// Resolve executable path for updater and DB colocated files
+	exePath, err := os.Executable()
+	if err != nil || exePath == "" {
+		exePath, _ = os.Getwd()
+	}
+	a.exePath = exePath
+	a.updater = services.NewUpdaterService(exePath, "nineteenss", "goods_wails_app")
+	// Start background update loop
+	go a.backgroundUpdateLoop()
 }
 
 // Greet returns a greeting for the given name
@@ -39,9 +55,9 @@ func (a *App) Greet(name string) string {
 
 // CreateItem creates a new inventory item.
 func (a *App) CreateItem(name string, quantity int, comment string) (*models.Item, error) {
-    if a.db == nil || a.db.DB == nil {
-        return nil, fmt.Errorf("database not initialised")
-    }
+	if a.db == nil || a.db.DB == nil {
+		return nil, fmt.Errorf("database not initialised")
+	}
 	item := &models.Item{
 		Name:      name,
 		Quantity:  quantity,
@@ -57,9 +73,9 @@ func (a *App) CreateItem(name string, quantity int, comment string) (*models.Ite
 
 // UpdateItem updates existing item by id.
 func (a *App) UpdateItem(id uint, name string, quantity int, comment string) (*models.Item, error) {
-    if a.db == nil || a.db.DB == nil {
-        return nil, fmt.Errorf("database not initialised")
-    }
+	if a.db == nil || a.db.DB == nil {
+		return nil, fmt.Errorf("database not initialised")
+	}
 	var item models.Item
 	if err := a.db.DB.First(&item, id).Error; err != nil {
 		return nil, err
@@ -80,9 +96,9 @@ func (a *App) WithdrawQuantity(id uint, delta int, comment string) (*models.Item
 	if delta <= 0 {
 		return nil, fmt.Errorf("delta must be positive")
 	}
-    if a.db == nil || a.db.DB == nil {
-        return nil, fmt.Errorf("database not initialised")
-    }
+	if a.db == nil || a.db.DB == nil {
+		return nil, fmt.Errorf("database not initialised")
+	}
 	var item models.Item
 	if err := a.db.DB.First(&item, id).Error; err != nil {
 		return nil, err
@@ -104,9 +120,9 @@ func (a *App) WithdrawQuantity(id uint, delta int, comment string) (*models.Item
 
 // ListItems returns all items ordered by name.
 func (a *App) ListItems() ([]models.Item, error) {
-    if a.db == nil || a.db.DB == nil {
-        return nil, fmt.Errorf("database not initialised")
-    }
+	if a.db == nil || a.db.DB == nil {
+		return nil, fmt.Errorf("database not initialised")
+	}
 	var items []models.Item
 	if err := a.db.DB.Order("name asc").Find(&items).Error; err != nil {
 		return nil, err
@@ -137,5 +153,113 @@ func initDatabase(a *App) {
 
 	if err := a.db.DB.AutoMigrate(&models.Item{}); err != nil {
 		log.Printf("auto migrate error: %v", err)
+	}
+}
+
+// SetCurrentVersion sets the current app version (provided by the frontend package.json)
+func (a *App) SetCurrentVersion(version string) {
+	a.currentVersion = version
+}
+
+// CheckForUpdates checks GitHub releases and returns update status.
+func (a *App) CheckForUpdates(currentVersion string) (models.UpdateStatus, error) {
+	if currentVersion != "" {
+		a.currentVersion = currentVersion
+	}
+	if a.updater == nil {
+		return models.UpdateStatus{CurrentVersion: a.currentVersion, Error: "updater not initialised"}, nil
+	}
+	tag, assetURL, err := a.updater.CheckLatest(a.ctx)
+	if err != nil {
+		return models.UpdateStatus{CurrentVersion: a.currentVersion, Error: err.Error()}, nil
+	}
+	a.latestTag = tag
+	a.latestAssetURL = assetURL
+	available := false
+	if tag != "" && a.currentVersion != "" {
+		available = services.SemverIsNewer(a.currentVersion, tag)
+	}
+	status := models.UpdateStatus{
+		CurrentVersion: a.currentVersion,
+		LatestVersion:  tag,
+		Available:      available,
+		Downloaded:     a.downloaded,
+	}
+	return status, nil
+}
+
+// DownloadUpdate downloads the latest release asset in the background.
+func (a *App) DownloadUpdate() (models.UpdateStatus, error) {
+	if a.updater == nil {
+		return models.UpdateStatus{CurrentVersion: a.currentVersion, Error: "updater not initialised"}, nil
+	}
+	if a.latestAssetURL == "" {
+		// Refresh latest first
+		if _, _, err := a.updater.CheckLatest(a.ctx); err != nil {
+			return models.UpdateStatus{CurrentVersion: a.currentVersion, Error: err.Error()}, nil
+		}
+	}
+	if a.latestAssetURL == "" {
+		return models.UpdateStatus{CurrentVersion: a.currentVersion, LatestVersion: a.latestTag, Available: false}, nil
+	}
+	if _, err := a.updater.DownloadToNew(a.ctx, a.latestAssetURL); err != nil {
+		return models.UpdateStatus{CurrentVersion: a.currentVersion, LatestVersion: a.latestTag, Available: true, Error: err.Error()}, nil
+	}
+	a.downloaded = true
+	runtime.EventsEmit(a.ctx, "update:downloaded")
+	return models.UpdateStatus{CurrentVersion: a.currentVersion, LatestVersion: a.latestTag, Available: true, Downloaded: true}, nil
+}
+
+// ApplyAndRestart will replace the executable with the downloaded one and relaunch the app.
+func (a *App) ApplyAndRestart() error {
+	if a.updater == nil {
+		return fmt.Errorf("updater not initialised")
+	}
+	if err := a.updater.PlanApplyOnExit(); err != nil {
+		return err
+	}
+	// Quit the app; the helper will replace and relaunch
+	go func() {
+		// slight delay to allow response to return
+		time.Sleep(200 * time.Millisecond)
+		runtime.Quit(a.ctx)
+	}()
+	return nil
+}
+
+// backgroundUpdateLoop periodically checks for updates and downloads them silently.
+func (a *App) backgroundUpdateLoop() {
+	ticker := time.NewTicker(6 * time.Hour)
+	defer ticker.Stop()
+	for {
+		// Do an initial short delay to avoid competing with startup
+		select {
+		case <-time.After(10 * time.Second):
+		case <-a.ctx.Done():
+			return
+		}
+
+		if a.currentVersion != "" && a.updater != nil {
+			tag, assetURL, err := a.updater.CheckLatest(a.ctx)
+			if err == nil && tag != "" && services.SemverIsNewer(a.currentVersion, tag) {
+				a.latestTag = tag
+				a.latestAssetURL = assetURL
+				runtime.EventsEmit(a.ctx, "update:available", tag)
+				// If not already downloaded, download in background
+				if !a.downloaded {
+					if _, err := a.updater.DownloadToNew(a.ctx, assetURL); err == nil {
+						a.downloaded = true
+						runtime.EventsEmit(a.ctx, "update:downloaded")
+					}
+				}
+			}
+		}
+
+		select {
+		case <-ticker.C:
+			continue
+		case <-a.ctx.Done():
+			return
+		}
 	}
 }

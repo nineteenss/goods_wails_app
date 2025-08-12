@@ -39,6 +39,26 @@ export namespace models {
 		    return a;
 		}
 	}
+	export class UpdateStatus {
+	    currentVersion: string;
+	    latestVersion: string;
+	    available: boolean;
+	    downloaded: boolean;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.currentVersion = source["currentVersion"];
+	        this.latestVersion = source["latestVersion"];
+	        this.available = source["available"];
+	        this.downloaded = source["downloaded"];
+	        this.error = source["error"];
+	    }
+	}
 
 }
 

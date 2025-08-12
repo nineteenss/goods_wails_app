@@ -1,8 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Flex, Text, Button, Tooltip } from "@mantine/core";
 import { IconDownload, IconCheck } from "@tabler/icons-react";
 import pkg from "../../../package.json";
+import {
+  applyAndRestart,
+  checkForUpdates,
+  downloadUpdate,
+  UpdateStatus,
+} from "../../utils/api";
+import { EventsOn } from "../../../wailsjs/runtime/runtime";
 
 interface CurrentVersionProps {
   version?: string;
@@ -11,7 +18,27 @@ interface CurrentVersionProps {
 export const CurrentVersion = ({
   version = pkg.version,
 }: CurrentVersionProps) => {
-  const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
+  const [status, setStatus] = useState<UpdateStatus | null>(null);
+
+  useEffect(() => {
+    // inform backend about our current version and ask for updates
+    checkForUpdates(version).then(setStatus);
+
+    // subscribe to update events from backend
+    const unsubscribeAvailable = EventsOn("update:available", () => {
+      checkForUpdates(version).then(setStatus);
+    });
+    const unsubscribeDownloaded = EventsOn("update:downloaded", () => {
+      setStatus((prev) =>
+        prev ? { ...prev, downloaded: true, available: true } : prev
+      );
+    });
+
+    return () => {
+      unsubscribeAvailable && unsubscribeAvailable();
+      unsubscribeDownloaded && unsubscribeDownloaded();
+    };
+  }, [version]);
 
   return (
     <Flex direction={"row"} gap={12} align={"center"}>
@@ -27,24 +54,45 @@ export const CurrentVersion = ({
       </Flex>
       <Tooltip
         label={
-          isUpdateAvailable
-            ? "Доступно обновление (нажмите, чтобы обновить)"
+          status?.available
+            ? status?.downloaded
+              ? "Обновление скачано (нажмите для перезапуска)"
+              : "Доступно обновление (нажмите, чтобы скачать)"
             : "Вы используете последнюю версию"
         }
       >
         <Button
           size="compact-sm"
           variant="subtle"
-          color={isUpdateAvailable ? "orange" : "green"}
+          color={
+            status?.available
+              ? status?.downloaded
+                ? "blue"
+                : "orange"
+              : "green"
+          }
           rightSection={
-            isUpdateAvailable ? (
+            status?.available ? (
               <IconDownload size={18} />
             ) : (
               <IconCheck size={18} />
             )
           }
+          onClick={async () => {
+            if (!status?.available) return;
+            if (status.downloaded) {
+              await applyAndRestart();
+              return;
+            }
+            const s = await downloadUpdate();
+            setStatus(s);
+          }}
         >
-          {isUpdateAvailable ? "Доступно обновление" : "Обновлений нет"}
+          {status?.available
+            ? status.downloaded
+              ? "Перезапустить и обновить"
+              : "Доступно обновление"
+            : "Обновлений нет"}
         </Button>
       </Tooltip>
     </Flex>

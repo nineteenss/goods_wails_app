@@ -57,3 +57,27 @@ export async function withdrawItem(payload: {
 
 export type { Item };
 
+// Update API
+export type UpdateStatus = {
+  currentVersion: string;
+  latestVersion: string;
+  available: boolean;
+  downloaded: boolean;
+  error?: string;
+};
+
+export async function checkForUpdates(currentVersion: string): Promise<UpdateStatus> {
+  // @ts-ignore
+  return await window.go.main.App.CheckForUpdates(currentVersion);
+}
+
+export async function downloadUpdate(): Promise<UpdateStatus> {
+  // @ts-ignore
+  return await window.go.main.App.DownloadUpdate();
+}
+
+export async function applyAndRestart(): Promise<void> {
+  // @ts-ignore
+  return await window.go.main.App.ApplyAndRestart();
+}
+

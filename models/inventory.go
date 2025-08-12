@@ -13,3 +13,13 @@ type Item struct {
 	UpdatedAt time.Time `json:"updated"`
 	CreatedAt time.Time `json:"-"`
 }
+
+// UpdateStatus represents application update state exposed to the frontend.
+// Returned by bound methods and used for simple UI state.
+type UpdateStatus struct {
+	CurrentVersion string `json:"currentVersion"`
+	LatestVersion  string `json:"latestVersion"`
+	Available      bool   `json:"available"`
+	Downloaded     bool   `json:"downloaded"`
+	Error          string `json:"error,omitempty"`
+}
