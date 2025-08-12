@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Tag to attach asset to (e.g. v1.0.2)
+        description: Tag to attach asset to (e.g. v1.0.Х)
         required: true
 
 permissions:
@@ -16,17 +16,14 @@ jobs:
   build-windows:
     runs-on: windows-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
           go-version: "1.23"
           cache: true
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
@@ -35,18 +32,27 @@ jobs:
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
-      - name: Build (Wails)
+      - name: Build Wails app
         run: wails build -clean
 
-      - name: Rename artifact (generic filename)
-        shell: bash
-        run: |
-          mkdir -p build/windows
-          cp build/bin/goods_wails_app.exe build/windows/goods_wails_app_windows_amd64.exe
+      - name: Build launcher (no console)
+        run: go build -ldflags "-H=windowsgui" -o build/bin/launcher.exe ./launcher
 
-      - name: Upload release asset
+      - name: Prepare package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force build/windows | Out-Null
+          Copy-Item build/bin/goods_wails_app.exe build/windows/goods_wails_app.exe
+          Copy-Item build/bin/launcher.exe build/windows/launcher.exe
+          Compress-Archive -Path build/windows/* -DestinationPath build/windows/goods_wails_app_windows_amd64.zip -Force
+          # Standalone asset for auto-updater (ONLY the main exe)
+          Copy-Item build/bin/goods_wails_app.exe build/windows/goods_wails_app_windows_amd64.exe
+
+      - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.release.tag_name || inputs.tag }}
-          files: build/windows/goods_wails_app_windows_amd64.exe
+          files: |
+            build/windows/goods_wails_app_windows_amd64.exe
+            build/windows/goods_wails_app_windows_amd64.zip
           fail_on_unmatched_files: true
