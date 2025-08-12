@@ -30,7 +30,8 @@ type UpdaterService struct {
 func NewUpdaterService(exePath string, repoOwner string, repoName string) *UpdaterService {
 	// Attempt to pick a reasonable asset filter for Windows .exe
 	// The filter will match assets containing repo name and .exe
-	pattern := fmt.Sprintf(`(?i)%s.*\.exe$`, regexp.QuoteMeta(repoName))
+	// Relax filter to any .exe asset (we'll rely on GitHub tag for versioning)
+	pattern := `(?i)\.exe$`
 	if runtime.GOOS != "windows" {
 		// Fallback to any asset for non-Windows, though this project targets Windows per workspace
 		pattern = fmt.Sprintf(`(?i)%s`, regexp.QuoteMeta(repoName))
@@ -178,6 +179,91 @@ func (u *UpdaterService) DownloadToNew(ctx context.Context, assetURL string) (st
 	if err := os.Rename(tmpPath, newPath); err != nil {
 		os.Remove(tmpPath)
 		return "", err
+	}
+	return newPath, nil
+}
+
+// DownloadToNewWithProgress downloads asset and periodically reports progress via callback.
+// The callback receives (downloadedBytes, totalBytes). totalBytes may be -1 if unknown.
+func (u *UpdaterService) DownloadToNewWithProgress(ctx context.Context, assetURL string, onProgress func(downloaded, total int64)) (string, error) {
+	if assetURL == "" {
+		return "", errors.New("empty asset url")
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, assetURL, nil)
+	if err != nil {
+		return "", err
+	}
+	resp, err := u.httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("download status: %d", resp.StatusCode)
+	}
+
+	total := resp.ContentLength
+	if total <= 0 {
+		total = -1
+	}
+	type countingReader struct {
+		r          io.Reader
+		downloaded int64
+		total      int64
+		cb         func(downloaded, total int64)
+		lastTick   time.Time
+	}
+	cr := &countingReader{r: resp.Body, total: total, cb: onProgress, lastTick: time.Now()}
+	buf := make([]byte, 32*1024)
+
+	newPath := u.exePath + ".new"
+	tmpPath := filepath.Join(filepath.Dir(u.exePath), ".partial-download")
+	f, err := os.Create(tmpPath)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if f != nil {
+			f.Close()
+		}
+	}()
+
+	for {
+		n, readErr := cr.r.Read(buf)
+		if n > 0 {
+			if _, err := f.Write(buf[:n]); err != nil {
+				os.Remove(tmpPath)
+				return "", err
+			}
+			cr.downloaded += int64(n)
+			// throttle callbacks to ~20Hz
+			now := time.Now()
+			if cr.cb != nil && (now.Sub(cr.lastTick) > 50*time.Millisecond || readErr == io.EOF) {
+				cr.lastTick = now
+				cr.cb(cr.downloaded, cr.total)
+			}
+		}
+		if readErr != nil {
+			if readErr == io.EOF {
+				break
+			}
+			os.Remove(tmpPath)
+			return "", readErr
+		}
+	}
+
+	if err := f.Close(); err != nil {
+		os.Remove(tmpPath)
+		return "", err
+	}
+	f = nil
+	if err := os.Rename(tmpPath, newPath); err != nil {
+		os.Remove(tmpPath)
+		return "", err
+	}
+	if onProgress != nil {
+		onProgress(cr.downloaded, cr.total)
 	}
 	return newPath, nil
 }

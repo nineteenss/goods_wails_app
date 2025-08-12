@@ -202,7 +202,12 @@ func (a *App) DownloadUpdate() (models.UpdateStatus, error) {
 	if a.latestAssetURL == "" {
 		return models.UpdateStatus{CurrentVersion: a.currentVersion, LatestVersion: a.latestTag, Available: false}, nil
 	}
-	if _, err := a.updater.DownloadToNew(a.ctx, a.latestAssetURL); err != nil {
+	// Emit progress events while downloading
+	_, err := a.updater.DownloadToNewWithProgress(a.ctx, a.latestAssetURL, func(downloaded, total int64) {
+		// total may be -1; send -1 to frontend and let it show indeterminate
+		runtime.EventsEmit(a.ctx, "update:progress", downloaded, total)
+	})
+	if err != nil {
 		return models.UpdateStatus{CurrentVersion: a.currentVersion, LatestVersion: a.latestTag, Available: true, Error: err.Error()}, nil
 	}
 	a.downloaded = true
