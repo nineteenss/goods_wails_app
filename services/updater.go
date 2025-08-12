@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +16,11 @@ import (
 	"strings"
 	"time"
 )
+
+// Embed the reusable swap batch script
+//
+//go:embed update_swap.bat
+var updateSwapBat []byte
 
 // UpdaterService handles checking and downloading application updates from GitHub Releases.
 type UpdaterService struct {
@@ -281,36 +287,23 @@ func (u *UpdaterService) PlanApplyOnExit() error {
 	}
 
 	pid := os.Getpid()
-	// PowerShell script: wait for PID, rotate files, replace, cleanup
-	script := fmt.Sprintf(`
-$pidToWait = %d
-$exe = '%s'
-$new = '%s'
-try { Wait-Process -Id $pidToWait } catch {}
-Start-Sleep -Milliseconds 300
-try { Move-Item -Force -ErrorAction SilentlyContinue -Path $exe -Destination ($exe + '.old') } catch {}
-Move-Item -Force -Path $new -Destination $exe
-Remove-Item -Force -ErrorAction SilentlyContinue ($exe + '.old')
-Start-Process -FilePath $exe
-`, pid, escapePS(u.exePath), escapePS(newPath))
-
-	// Write to a temp .ps1 and run hidden
-	tempDir := os.TempDir()
-	psPath := filepath.Join(tempDir, fmt.Sprintf("wails_updater_%d.ps1", time.Now().UnixNano()))
-	if err := os.WriteFile(psPath, []byte(script), 0o600); err != nil {
+	appDir := filepath.Dir(u.exePath)
+	batPath := filepath.Join(appDir, "update_swap.bat")
+	// Always write/overwrite to ensure presence
+	if err := os.WriteFile(batPath, updateSwapBat, 0o700); err != nil {
 		return err
 	}
 
-	// Use powershell if available, fallback to pwsh
-	shell := "powershell"
-	if _, err := os.Stat("C:/Program Files/PowerShell/7/pwsh.exe"); err == nil {
-		shell = "C:/Program Files/PowerShell/7/pwsh.exe"
+	// Prefer launcher.exe if present
+	launcher := filepath.Join(appDir, "launcher.exe")
+	if _, err := os.Stat(launcher); err == nil {
+		return startDetached(launcher, []string{"--exe", u.exePath, "--new", newPath, "--log", filepath.Join(appDir, "wails_updater.log")})
 	}
 
-	// Start process detached
-	// We avoid using exec.Command here to keep this service independent of syscall on Go <1.21
-	// Using Start-Process from inline is more complex; rely on OS association
-	return startDetached(shell, []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", psPath})
+	// Fallback: Run the batch script detached and hidden
+	logPath := filepath.Join(appDir, "wails_updater.log")
+	args := []string{"/c", batPath, fmt.Sprintf("%d", pid), u.exePath, newPath, logPath}
+	return startDetached("cmd.exe", args)
 }
 
 // escapePS escapes single quotes for PowerShell single-quoted strings

@@ -44,7 +44,7 @@ func (a *App) startup(ctx context.Context) {
 	}
 	a.exePath = exePath
 	a.updater = services.NewUpdaterService(exePath, "nineteenss", "goods_wails_app")
-	// Start background update loop
+	// Start background update watcher (check-only; no auto-download/apply)
 	go a.backgroundUpdateLoop()
 }
 
@@ -239,7 +239,7 @@ func (a *App) backgroundUpdateLoop() {
 	for {
 		// Do an initial short delay to avoid competing with startup
 		select {
-		case <-time.After(10 * time.Second):
+		case <-time.After(30 * time.Second):
 		case <-a.ctx.Done():
 			return
 		}
@@ -250,13 +250,7 @@ func (a *App) backgroundUpdateLoop() {
 				a.latestTag = tag
 				a.latestAssetURL = assetURL
 				runtime.EventsEmit(a.ctx, "update:available", tag)
-				// If not already downloaded, download in background
-				if !a.downloaded {
-					if _, err := a.updater.DownloadToNew(a.ctx, assetURL); err == nil {
-						a.downloaded = true
-						runtime.EventsEmit(a.ctx, "update:downloaded")
-					}
-				}
+				// No auto-download/apply. The user must click the button to download and apply.
 			}
 		}
 

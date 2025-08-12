@@ -24,6 +24,9 @@ export const CurrentVersion = ({
     // inform backend about our current version and ask for updates
     checkForUpdates(version).then(setStatus);
 
+    // @ts-ignore - Tell backend our version for auto-update comparison
+    window.go?.main?.App?.SetCurrentVersion?.(version);
+
     // subscribe to update events from backend
     const unsubscribeAvailable = EventsOn("update:available", () => {
       checkForUpdates(version).then(setStatus);
