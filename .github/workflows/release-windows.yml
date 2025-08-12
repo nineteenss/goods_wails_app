@@ -51,6 +51,7 @@ jobs:
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
+          allow_updates: true
           tag_name: ${{ github.event.release.tag_name || inputs.tag }}
           files: |
             build/windows/goods_wails_app_windows_amd64.exe
