@@ -39,6 +39,9 @@ func (a *App) Greet(name string) string {
 
 // CreateItem creates a new inventory item.
 func (a *App) CreateItem(name string, quantity int, comment string) (*models.Item, error) {
+    if a.db == nil || a.db.DB == nil {
+        return nil, fmt.Errorf("database not initialised")
+    }
 	item := &models.Item{
 		Name:      name,
 		Quantity:  quantity,
@@ -54,6 +57,9 @@ func (a *App) CreateItem(name string, quantity int, comment string) (*models.Ite
 
 // UpdateItem updates existing item by id.
 func (a *App) UpdateItem(id uint, name string, quantity int, comment string) (*models.Item, error) {
+    if a.db == nil || a.db.DB == nil {
+        return nil, fmt.Errorf("database not initialised")
+    }
 	var item models.Item
 	if err := a.db.DB.First(&item, id).Error; err != nil {
 		return nil, err
@@ -74,6 +80,9 @@ func (a *App) WithdrawQuantity(id uint, delta int, comment string) (*models.Item
 	if delta <= 0 {
 		return nil, fmt.Errorf("delta must be positive")
 	}
+    if a.db == nil || a.db.DB == nil {
+        return nil, fmt.Errorf("database not initialised")
+    }
 	var item models.Item
 	if err := a.db.DB.First(&item, id).Error; err != nil {
 		return nil, err
@@ -95,6 +104,9 @@ func (a *App) WithdrawQuantity(id uint, delta int, comment string) (*models.Item
 
 // ListItems returns all items ordered by name.
 func (a *App) ListItems() ([]models.Item, error) {
+    if a.db == nil || a.db.DB == nil {
+        return nil, fmt.Errorf("database not initialised")
+    }
 	var items []models.Item
 	if err := a.db.DB.Order("name asc").Find(&items).Error; err != nil {
 		return nil, err
